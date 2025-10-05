@@ -7,6 +7,8 @@ import threading
 import time
 import urllib.request as urllib_request
 from flask import stream_with_context
+import shutil
+import subprocess
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
@@ -17,6 +19,27 @@ progress = {}
 # Simple in-memory search cache: { query_normalized: (timestamp, results) }
 SEARCH_CACHE = {}
 SEARCH_CACHE_TTL = 300  # seconds
+
+def get_ffmpeg_path():
+    """Detecta automaticamente o caminho do FFmpeg"""
+    # Primeiro, tenta encontrar no PATH
+    ffmpeg_cmd = shutil.which('ffmpeg')
+    if ffmpeg_cmd:
+        print(f"FFmpeg encontrado no PATH: {ffmpeg_cmd}")
+        return ffmpeg_cmd
+    
+    # Depois, tenta encontrar localmente (Windows)
+    local_ffmpeg = os.path.join(os.path.dirname(__file__), 'ffmpeg.exe')
+    if os.path.isfile(local_ffmpeg):
+        print(f"FFmpeg encontrado localmente: {local_ffmpeg}")
+        return local_ffmpeg
+    
+    # Se não encontrou, avisa
+    print("AVISO: FFmpeg não encontrado! Downloads podem falhar.")
+    return None
+
+# Detecta FFmpeg na inicialização
+FFMPEG_PATH = get_ffmpeg_path()
 
 @app.route('/info', methods=['POST'])
 def info_video():
@@ -351,8 +374,10 @@ def baixar_audio():
     
     def process():
         try:
-            ffmpeg_path = os.path.join(os.path.dirname(__file__), 'ffmpeg.exe')
-            if not os.path.isfile(ffmpeg_path):
+            # Usa detecção automática do FFmpeg
+            ffmpeg_path = FFMPEG_PATH
+            if not ffmpeg_path:
+                print("[ERRO] FFmpeg não encontrado!")
                 progress[task_id] = -1
                 return
 
