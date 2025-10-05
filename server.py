@@ -714,5 +714,12 @@ def download_file(filename):
     return jsonify({'error': 'Arquivo não encontrado'}), 404
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("DEBUG", "false").lower() == "true"
+    host = "0.0.0.0" if os.environ.get("PRODUCTION") else "127.0.0.1"
+    
+    print(f"Iniciando servidor na porta {port}")
+    print(f"Debug: {debug}")
+    print(f"Host: {host}")
+    
+    app.run(host=host, port=port, debug=debug)
