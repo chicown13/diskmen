@@ -9,6 +9,9 @@ import urllib.request as urllib_request
 from flask import stream_with_context
 import shutil
 import subprocess
+import re
+import zipfile
+import concurrent.futures
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
@@ -41,6 +44,19 @@ def get_ffmpeg_path():
 # Detecta FFmpeg na inicialização
 FFMPEG_PATH = get_ffmpeg_path()
 
+@app.route('/')
+def home():
+    return jsonify({
+        'status': 'ok',
+        'message': 'YouTube Downloader API',
+        'ffmpeg_available': FFMPEG_PATH is not None,
+        'version': '1.0.0'
+    })
+
+@app.route('/health')
+def health():
+    return jsonify({'status': 'healthy'})
+
 @app.route('/info', methods=['POST'])
 def info_video():
     data = request.get_json()
@@ -49,7 +65,6 @@ def info_video():
         return jsonify({'error': 'Link não fornecido'}), 400
     try:
         # Detecta playlist e monta link correto
-        import re
         is_playlist = 'playlist' in link or 'list=' in link
         playlist_id = None
         if 'list=' in link:
@@ -362,7 +377,6 @@ def get_progress(task_id):
 
 @app.route('/baixar', methods=['POST'])
 def baixar_audio():
-    import concurrent.futures
     data = request.get_json()
     link = data.get('link')
     if not link:
@@ -384,7 +398,6 @@ def baixar_audio():
             progress[task_id] = 10
 
             # Detecta se é playlist e monta link correto
-            import re
             is_playlist = 'playlist' in link or 'list=' in link
             playlist_id = None
             if 'list=' in link:
@@ -461,7 +474,6 @@ def baixar_audio():
                     if not info:
                         print(f"Não foi possível extrair informações para: {video_url}")
                         return None
-                    import re
                     safe_title = re.sub(r'[^\w\-_\. ]', '_', title)[:60]
                     temp_files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.startswith(f'temp_{temp_id}')]
                     if not temp_files:
@@ -469,7 +481,6 @@ def baixar_audio():
                         return None
                     audio_path = os.path.join(DOWNLOAD_FOLDER, temp_files[0])
                     mp3_path = os.path.join(DOWNLOAD_FOLDER, f"{safe_title}_{temp_id}.mp3")
-                    import subprocess
                     def get_duration(path):
                         try:
                             result = subprocess.run([
@@ -691,7 +702,6 @@ def baixar_audio():
             # Finalização
             print(f"[DEBUG] is_playlist: {is_playlist}, arquivos_mp3: {len(arquivos_mp3) if arquivos_mp3 else 0}")
             if is_playlist and arquivos_mp3:
-                import zipfile
                 zip_name = f'playlist_{task_id[:8]}.zip'
                 zip_path = os.path.join(DOWNLOAD_FOLDER, zip_name)
                 print(f"[DEBUG] Criando ZIP: {zip_path}")
